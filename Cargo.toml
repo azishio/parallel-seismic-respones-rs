@@ -4,5 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rayon = "1.10.0"
+rayon = { version = "1.10.0", optional = true }
 seismic-response = "0.4.0"
+
+[features]
+rayon = ["dep:rayon"]
