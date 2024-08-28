@@ -1,10 +1,12 @@
-use seismic_response::{ResponseAccAnalyzer, ResponseAccAnalyzerParams};
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
+use seismic_response::ResponseAccAnalyzer;
 use std::fs::File;
 use std::io;
 use std::io::Write;
 
-const MAX_T: u32 = 5000;
-const T_STEP: usize = 100;
+const MAX_T: u32 = 100000;
+const T_STEP: usize = 1;
 const OUTPUT_FILE_PATH: &str = "output.csv";
 const INPUT_FILE_PATH: &str = "./pEW.csv";
 
@@ -16,7 +18,7 @@ fn main() {
         .flat_map(|line| line.parse::<f64>())
         .collect::<Vec<_>>();
 
-    // #[cfg(not(feature = "rayon"))]
+    #[cfg(not(feature = "rayon"))]
     let result = (0..MAX_T).step_by(T_STEP).map(|t| {
         let params = ResponseAccAnalyzerParams {
             natural_period_ms: t,
@@ -35,14 +37,14 @@ fn main() {
         analyzer.analyze(&input).abs_acc.into_iter().reduce(|a, b| a.max(b.abs())).expect("Failed to reduce")
     });
 
-    // #[cfg(feature = "rayon")]
-    // let result = (0..MAX_T).into_par_iter().step_by(T_STEP).map(|t| {
-    //     let analyzer = ResponseAccAnalyzer::builder()
-    //         .natural_period_ms(t)
-    //         .build();
+    #[cfg(feature = "rayon")]
+    let result = (0..MAX_T).into_par_iter().step_by(T_STEP).map(|t| {
+        let analyzer = ResponseAccAnalyzer::builder()
+            .natural_period_ms(t)
+            .build();
 
-    //     analyzer.analyze(&input).abs_acc.into_par_iter().reduce(|| 0., |a, b| a.max(b.abs()))
-    // });
+        analyzer.analyze(&input).abs_acc.into_par_iter().reduce(|| 0., |a, b| a.max(b.abs()))
+    });
 
     let mut output_file = File::create(OUTPUT_FILE_PATH).expect("Failed to create output file");
     let str = result.map(|v| v.to_string()).collect::<Vec<_>>().join("\n");
